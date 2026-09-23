@@ -3,7 +3,6 @@ resource "google_monitoring_service" "app_service" {
   service_id   = "devops-app-service"
   display_name = "DevOps Sample Application Service"
 
-  # Link directly to the Cloud Run service instance
   basic_service {
     service_type = "CLOUD_RUN"
     service_labels = {
@@ -19,17 +18,13 @@ resource "google_monitoring_slo" "availability_slo" {
   slo_id       = "availability-slo-99-5"
   display_name = "99.5% Availability over 30 Days"
 
-  goal            = 0.995 # 99.5% target
+  goal                = 0.995 # 99.5% target
   rolling_period_days = 30
 
-  # Define Good Events vs Total Events using Request-Based SLI
   request_based_sli {
     good_total_ratio_threshold {
-      performance_proxy_metric = "run.googleapis.com/request_count"
-      
-      # Filter for 2xx, 3xx, and 4xx status codes as good events (excluding 5xx server errors)
-      good_service_filter = "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"${google_cloud_run_v2_service.sample_app.name}\" response_code_class=\"2xx\""
-      
+      # Metric filtering for request counts
+      good_service_filter  = "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"${google_cloud_run_v2_service.sample_app.name}\" response_code_class=\"2xx\""
       total_service_filter = "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"${google_cloud_run_v2_service.sample_app.name}\""
     }
   }
@@ -41,7 +36,7 @@ resource "google_monitoring_slo" "latency_slo" {
   slo_id       = "latency-slo-300ms"
   display_name = "99% Requests Latency < 300ms"
 
-  goal            = 0.99
+  goal                = 0.99
   rolling_period_days = 7
 
   request_based_sli {
@@ -63,14 +58,13 @@ resource "google_monitoring_alert_policy" "fast_burn_alert" {
     display_name = "Availability SLO - Fast Burn (14x)"
 
     condition_threshold {
-      # Target metric for SLO Burn Rate
       filter          = "select_slo_burn_rate(\"${google_monitoring_slo.availability_slo.name}\", 3600s)"
       duration        = "0s"
       comparison      = "COMPARISON_GT"
-      threshold_value = 14 # 14x burn rate over 1 hour consumes ~2% of monthly budget
+      threshold_value = 14
 
       aggregations {
-        alignment_period = "60s"
+        alignment_period   = "60s"
         per_series_aligner = "ALIGN_NEXT_OLDER"
       }
     }
